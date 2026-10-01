@@ -1,0 +1,337 @@
+const {
+  Client,
+  GatewayIntentBits,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  PermissionFlagsBits,
+  ChannelType,
+  SlashCommandBuilder,
+  REST,
+  Routes,
+} = require('discord.js');
+const discordTranscripts = require('discord-html-transcripts');
+const express = require('express');
+require('dotenv').config();
+
+// Web server for Render free tier keeping bot alive
+const app = express();
+app.get('/', (req, res) => res.send('Bot is running!'));
+app.listen(process.env.PORT || 3000, () => console.log('Web server ready.'));
+
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers,
+  ],
+});
+
+// Configurations
+const PASTEL_BLUE = 0xAEC6CF;
+const BANNER_URL = 'https://cdn.discordapp.com/attachments/1553697060056866906/1554405328462938162/Coral_Reef_Sea_GIF_-_Coral_Reef_Sea_Ocean_-_Discover__Share_GIFs.gif?ex=6abf6745&is=6abe15c5&hm=7248fb3fe9a07a4857b393db5d6a767808fb7d12d910cd4e1bcd95281abb5a18';
+const CATEGORY_ID = '1539233770035617904';
+const STAFF_ROLE_ID = '1533372358755221566';
+const TRANSCRIPT_CHANNEL_ID = '1507278726998524046';
+
+// Command Registration
+const commands = [
+  new SlashCommandBuilder()
+    .setName('ticket-setup')
+    .setDescription('Sets up the ticket panel embed'),
+];
+
+client.once('ready', async () => {
+  console.log(`Logged in as ${client.user.tag}!`);
+
+  const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+  try {
+    console.log('Registering slash commands...');
+    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), {
+      body: commands,
+    });
+    console.log('Slash commands registered successfully.');
+  } catch (error) {
+    console.error('Error registering commands:', error);
+  }
+});
+
+// Slash Command Handler
+client.on('interactionCreate', async (interaction) => {
+  if (interaction.isChatInputCommand()) {
+    if (interaction.commandName === 'ticket-setup') {
+      const embed = new EmbedBuilder()
+        .setColor(PASTEL_BLUE)
+        .setDescription(
+          `_ _\n# _ _     tick__kette__ b*oo*th <:butterfly:1554370425587245066>\n_ _\n    always  ask  in  <#1507214174084927501> \n    before ordering and opening a\n    ticket! \n_ _\n>  ꫂ❁  **tickette rules** :\n> \` \`   payment first before process\n> \` \`   do not open if you are unsure\n> \` \`   no trolling.  ticket troll = ban !\n> \` \`   reporting hrs: 1pm-10pm only\n> \` \`   voided if  reported  outside  ^`
+        )
+        .setImage(BANNER_URL);
+
+      const buttons = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('ticket_order').setLabel('Order').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('ticket_report').setLabel('Report').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('ticket_others').setLabel('Others').setStyle(ButtonStyle.Secondary)
+      );
+
+      await interaction.reply({
+        content: 'Ticket panel sending...',
+        ephemeral: true,
+      });
+
+      await interaction.channel.send({
+        embeds: [embed],
+        components: [buttons],
+      });
+    }
+  }
+
+  // Button Click -> Modal Trigger
+  if (interaction.isButton()) {
+    const customId = interaction.customId;
+
+    if (customId === 'ticket_order') {
+      const modal = new ModalBuilder()
+        .setCustomId('modal_order')
+        .setTitle('Order Ticket Form');
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId('product_name')
+            .setLabel('product name:')
+            .setPlaceholder('the product you wish to purchase')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+        ),
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId('quantity')
+            .setLabel('quantity:')
+            .setPlaceholder('how many pcs will you buy')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+        ),
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId('details')
+            .setLabel('details:')
+            .setPlaceholder('uid, id, and username ( put N/A if not applicable )')
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(true)
+        )
+      );
+
+      return await interaction.showModal(modal);
+    }
+
+    if (customId === 'ticket_report') {
+      const modal = new ModalBuilder()
+        .setCustomId('modal_report')
+        .setTitle('Report Ticket Form');
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId('product_name')
+            .setLabel('product name:')
+            .setPlaceholder('the product you wish to report')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+        ),
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId('months_purchased')
+            .setLabel('months purchased:')
+            .setPlaceholder('how many months is the product item')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+        ),
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId('item_issue')
+            .setLabel('item issue:')
+            .setPlaceholder('explain the issue of the product')
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(true)
+        ),
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId('vouch_link')
+            .setLabel('vouch link :')
+            .setPlaceholder('paste the link of your vouch')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+        )
+      );
+
+      return await interaction.showModal(modal);
+    }
+
+    if (customId === 'ticket_others') {
+      const modal = new ModalBuilder()
+        .setCustomId('modal_others')
+        .setTitle('Others Ticket Form');
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId('reason')
+            .setLabel('reason for opening a ticket:')
+            .setPlaceholder('application, partnership, etc.')
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(true)
+        )
+      );
+
+      return await interaction.showModal(modal);
+    }
+
+    // Staff Buttons: Claim
+    if (customId === 'claim_ticket') {
+      if (!interaction.member.roles.cache.has(STAFF_ROLE_ID)) {
+        return interaction.reply({ content: 'Only staff can claim tickets!', ephemeral: true });
+      }
+
+      const disabledRow = new ActionRowBuilder().addComponents(
+        ButtonBuilder.from(interaction.message.components[0].components[0]).setDisabled(true),
+        ButtonBuilder.from(interaction.message.components[0].components[1])
+      );
+
+      await interaction.update({ components: [disabledRow] });
+      await interaction.channel.send(`ticket claimed by : ${interaction.user}`);
+    }
+
+    // Staff Buttons: Close
+    if (customId === 'close_ticket') {
+      if (!interaction.member.roles.cache.has(STAFF_ROLE_ID)) {
+        return interaction.reply({ content: 'Only staff can close tickets!', ephemeral: true });
+      }
+
+      await interaction.reply({ content: 'ticket will be closed in 10 mins, generating transcript!' });
+
+      setTimeout(async () => {
+        try {
+          const channel = interaction.channel;
+          const userMatch = channel.name.split('-').pop();
+          const ticketOpener = interaction.guild.members.cache.find(m => m.user.username.toLowerCase().replace(/[^a-z0-9]/g, '') === userMatch.toLowerCase().replace(/[^a-z0-9]/g, ''))?.user;
+
+          // Generate HTML Transcript
+          const attachment = await discordTranscripts.createTranscript(channel, {
+            limit: -1,
+            fileName: `transcript-${channel.name}.html`,
+            poweredBy: false,
+          });
+
+          const transcriptEmbed = new EmbedBuilder()
+            .setColor(PASTEL_BLUE)
+            .setTitle(`Ticket Transcript - ${channel.name}`)
+            .setDescription(`Transcript saved and generated successfully. Open the attached file in any web browser to view full chat history online.`)
+            .setImage(BANNER_URL);
+
+          // Send to transcript channel
+          const transcriptChannel = interaction.guild.channels.cache.get(TRANSCRIPT_CHANNEL_ID);
+          if (transcriptChannel) {
+            await transcriptChannel.send({ embeds: [transcriptEmbed], files: [attachment] });
+          }
+
+          // Send to ticket opener DM
+          if (ticketOpener) {
+            await ticketOpener.send({ embeds: [transcriptEmbed], files: [attachment] }).catch(() => {});
+          }
+
+          // Delete ticket channel
+          await channel.delete();
+        } catch (e) {
+          console.error(e);
+        }
+      }, 600000); // 10 minutes (600,000 ms)
+    }
+  }
+
+  // Modal Submissions & Ticket Creation
+  if (interaction.isModalSubmit()) {
+    await interaction.reply({
+      content: 'creating your ticket... please be patient',
+      ephemeral: true,
+    });
+
+    const usernameClean = interaction.user.username.toLowerCase().replace(/[^a-z0-9]/g, '');
+    let channelName = '';
+    let fields = [];
+
+    if (interaction.customId === 'modal_order') {
+      channelName = `order-${usernameClean}`;
+      fields = [
+        { name: 'Product Name', value: interaction.fields.getTextInputValue('product_name') },
+        { name: 'Quantity', value: interaction.fields.getTextInputValue('quantity') },
+        { name: 'Details', value: interaction.fields.getTextInputValue('details') },
+      ];
+    } else if (interaction.customId === 'modal_report') {
+      channelName = `report-${usernameClean}`;
+      fields = [
+        { name: 'Product Name', value: interaction.fields.getTextInputValue('product_name') },
+        { name: 'Months Purchased', value: interaction.fields.getTextInputValue('months_purchased') },
+        { name: 'Item Issue', value: interaction.fields.getTextInputValue('item_issue') },
+        { name: 'Vouch Link', value: interaction.fields.getTextInputValue('vouch_link') },
+      ];
+    } else if (interaction.customId === 'modal_others') {
+      channelName = `others-${usernameClean}`;
+      fields = [
+        { name: 'Reason for opening a ticket', value: interaction.fields.getTextInputValue('reason') },
+      ];
+    }
+
+    // Wait 5 seconds
+    setTimeout(async () => {
+      const ticketChannel = await interaction.guild.channels.create({
+        name: channelName,
+        type: ChannelType.GuildText,
+        parent: CATEGORY_ID,
+        permissionOverwrites: [
+          {
+            id: interaction.guild.id, // @everyone
+            deny: [PermissionFlagsBits.ViewChannel],
+          },
+          {
+            id: interaction.user.id, // Ticket opener
+            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
+          },
+          {
+            id: STAFF_ROLE_ID, // Staff role
+            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
+          },
+        ],
+      });
+
+      // Redirect interaction
+      await interaction.editReply({
+        content: `Your ticket has been created! <#${ticketChannel.id}>`,
+      });
+
+      // Send embed into ticket channel
+      const ticketEmbed = new EmbedBuilder()
+        .setColor(PASTEL_BLUE)
+        .setTitle(`Ticket Opened by ${interaction.user.tag}`)
+        .addFields(fields)
+        .setImage(BANNER_URL);
+
+      const ticketButtons = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('claim_ticket').setLabel('Claim').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('close_ticket').setLabel('Close').setStyle(ButtonStyle.Danger)
+      );
+
+      await ticketChannel.send({
+        content: `<@&${STAFF_ROLE_ID}> ${interaction.user}`,
+        embeds: [ticketEmbed],
+        components: [ticketButtons],
+      });
+    }, 5000);
+  }
+});
+
+client.login(process.env.DISCORD_TOKEN);
