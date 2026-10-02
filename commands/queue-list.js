@@ -10,10 +10,6 @@ const {
   Routes
 } = require('discord.js');
 
-// Keep-alive HTTP server for Render free web service hosting
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages]
-});
-
 // Configuration IDs
 const QUEUE_CHANNEL_ID = '1539239066049060974';
 const STAFF_ROLE_ID = '1533372358755221566';
